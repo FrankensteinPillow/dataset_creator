@@ -1,24 +1,22 @@
-from models import CreateDatasetBody, CreateDatasetResponse
-import sql
-import utils
-import config
-import pyarrow.parquet as pq
-import pyarrow
-import pandas as pd
 from typing import Dict
 
+import pandas as pd
+import pyarrow
+import pyarrow.parquet as pq
+
+import config
+import sql
+import utils
+from exceptions import DataNotFound
+from models import CreateDatasetBody
 
 CONFIG = config.get_config()
 
 
 async def create_dataset(request_body: CreateDatasetBody) -> Dict[str, str]:
     sensors_data = []
-    start_timestamp: str = utils.convert_timestamp_format(
-        request_body.start_timestamp
-    )
-    end_timestamp: str = utils.convert_timestamp_format(
-        request_body.end_timestamp
-    )
+    start_timestamp: str = request_body.start_timestamp
+    end_timestamp: str = request_body.end_timestamp
     dataset_hash = utils.get_dataset_hash(
         request_body.sensors, start_timestamp, end_timestamp
     )
@@ -32,6 +30,12 @@ async def create_dataset(request_body: CreateDatasetBody) -> Dict[str, str]:
         data = await sql.get_sensors_data(
             sensor_name, sensor_id, start_timestamp, end_timestamp
         )
+        if not data:
+            msg: str = (
+                f"Not found data for sensor '{sensor_name}_{sensor_id}' and "
+                f"timestamps {start_timestamp} {end_timestamp}"
+            )
+            raise DataNotFound(msg)
         sensors_data.append((data, sensor_name, sensor_id))
     result = concatenate_data(sensors_data)
     table = pyarrow.Table.from_pandas(result)
@@ -45,11 +49,18 @@ async def create_dataset(request_body: CreateDatasetBody) -> Dict[str, str]:
 
 
 async def write_datasets_link(sensors_data, dataset_id):
+    dataset_links = []
     for sensor_data, sensor_name, sensor_id in sensors_data:
         for _, timestamp, __ in sensor_data:
-            await sql.add_dataset_link(
-                dataset_id, sensor_name, sensor_id, timestamp
+            dataset_links.append(
+                {
+                    "dataset_id": dataset_id,
+                    "sensor_name": sensor_name,
+                    "sensor_id": sensor_id,
+                    "timestamp": timestamp,
+                }
             )
+    await sql.add_dataset_link(dataset_links)
 
 
 def concatenate_data(sensors_data):

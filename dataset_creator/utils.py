@@ -1,11 +1,11 @@
-from typing import Tuple, List
 import datetime as dt
 from hashlib import sha256
+from typing import List, Tuple
 
 
 def get_id_and_name(sensor: str) -> Tuple[str, int]:
-    sensor = sensor.split("_")
-    return sensor[0], int(sensor[1])
+    splitted_sensor: List[str] = sensor.split("_")
+    return splitted_sensor[0], int(splitted_sensor[1])
 
 
 def convert_timestamp_format(timestamp: str) -> str:
@@ -16,8 +16,8 @@ def convert_timestamp_format(timestamp: str) -> str:
 def get_dataset_hash(
     sensors: List[str], start_timestamp: str, end_timestamp: str
 ) -> str:
-    sensors_copy = sorted(sensors.copy())
+    sensors_copy: List[str] = sorted(sensors.copy())
     sensors_copy.append(start_timestamp)
     sensors_copy.append(end_timestamp)
-    sensors_copy = "".join(sensors_copy)
-    return sha256(sensors_copy.encode("utf-8")).hexdigest()
+    string_to_hash: str = "".join(sensors_copy)
+    return sha256(string_to_hash.encode("utf-8")).hexdigest()

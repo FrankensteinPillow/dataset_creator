@@ -1,7 +1,9 @@
-import sqlalchemy
-from config import get_config
+from typing import Any, Dict, Mapping, Optional
+
 import databases as db
-from typing import Dict, Optional
+import sqlalchemy
+
+from config import get_config
 from main import app
 
 CONFIG = get_config()
@@ -17,7 +19,7 @@ datasets = sqlalchemy.Table(
     ),
     sqlalchemy.Column("start_timestamp", sqlalchemy.Text),
     sqlalchemy.Column("end_timestamp", sqlalchemy.Text),
-    sqlalchemy.Column("dataset_hash", sqlalchemy.Text)
+    sqlalchemy.Column("dataset_hash", sqlalchemy.Text),
 )
 dataset_to_sensors = sqlalchemy.Table(
     "datasets_to_sensors",
@@ -32,28 +34,28 @@ alpha_sensors = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer),
     sqlalchemy.Column("timestamp", sqlalchemy.Text),
-    sqlalchemy.Column("filename", sqlalchemy.Text)
+    sqlalchemy.Column("filename", sqlalchemy.Text),
 )
 beta_sensors = sqlalchemy.Table(
     "beta_sensors",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer),
     sqlalchemy.Column("timestamp", sqlalchemy.Text),
-    sqlalchemy.Column("filename", sqlalchemy.Text)
+    sqlalchemy.Column("filename", sqlalchemy.Text),
 )
 gamma_sensors = sqlalchemy.Table(
     "gamma_sensors",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer),
     sqlalchemy.Column("timestamp", sqlalchemy.Text),
-    sqlalchemy.Column("filename", sqlalchemy.Text)
+    sqlalchemy.Column("filename", sqlalchemy.Text),
 )
 delta_sensors = sqlalchemy.Table(
     "delta_sensors",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer),
     sqlalchemy.Column("timestamp", sqlalchemy.Text),
-    sqlalchemy.Column("filename", sqlalchemy.Text)
+    sqlalchemy.Column("filename", sqlalchemy.Text),
 )
 sensors: Dict[str, sqlalchemy.Table] = {
     "alpha": alpha_sensors,
@@ -72,7 +74,7 @@ async def startup():
 
 
 @app.on_event("shutdown")
-async def startup():
+async def shutdown():
     await database.disconnect()
 
 
@@ -81,10 +83,10 @@ async def get_sensors_data(
 ):
     sensor = sensors[sensor_name]
     query = (
-        sensor.select().
-        where(sensor.c.id == sensor_id).
-        where(sensor.c.timestamp >= start_timestamp).
-        where(sensor.c.timestamp <= end_timestamp)
+        sensor.select()
+        .where(sensor.c.id == sensor_id)
+        .where(sensor.c.timestamp >= start_timestamp)
+        .where(sensor.c.timestamp <= end_timestamp)
     )
     return await database.fetch_all(query)
 
@@ -95,21 +97,18 @@ async def add_dataset(
     query = datasets.insert().values(
         start_timestamp=start_timestamp,
         end_timestamp=end_timestamp,
-        dataset_hash=dataset_hash
+        dataset_hash=dataset_hash,
     )
     return await database.execute(query)
 
 
-async def add_dataset_link(dataset_id, sensor_name, sensor_id, timestamp):
-    query = dataset_to_sensors.insert().values(
-        dataset_id=dataset_id,
-        sensor_name=sensor_name,
-        sensor_id=sensor_id,
-        timestamp=timestamp
-    )
+async def add_dataset_link(dataset_links):
+    query = dataset_to_sensors.insert().values(dataset_links)
     await database.execute(query)
 
 
-async def get_dataset_id_by_hash(dataset_hash: str) -> Optional[str]:
+async def get_dataset_id_by_hash(
+    dataset_hash: str,
+) -> Optional[Mapping[Any, Any]]:
     query = datasets.select().where(datasets.c.dataset_hash == dataset_hash)
     return await database.fetch_one(query)
