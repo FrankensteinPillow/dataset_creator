@@ -1,3 +1,5 @@
 db_url=sqlite:////home/user/db/sensors_data.db
 raw_data_path=/home/user/db/raw_data
 result_data_path=/home/user/db/result_data
+service_port=3520
+log_level=debug
